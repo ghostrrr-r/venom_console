@@ -1,5 +1,7 @@
-please install the lastest version of python by clicking the yellow button on here https://www.python.org/downloads
-
-run:
-pip install colorama
-before first use this is per computer not per install
+ __     __     __     __   __     _____     ______     __     __     ______        ______     __   __     __         __  __    
+/\ \  _ \ \   /\ \   /\ "-.\ \   /\  __-.  /\  __ \   /\ \  _ \ \   /\  ___\      /\  __ \   /\ "-.\ \   /\ \       /\ \_\ \   
+\ \ \/ ".\ \  \ \ \  \ \ \-.  \  \ \ \/\ \ \ \ \/\ \  \ \ \/ ".\ \  \ \___  \     \ \ \/\ \  \ \ \-.  \  \ \ \____  \ \____ \  
+ \ \__/".~\_\  \ \_\  \ \_\\"\_\  \ \____-  \ \_____\  \ \__/".~\_\  \/\_____\     \ \_____\  \ \_\\"\_\  \ \_____\  \/\_____\ 
+  \/_/   \/_/   \/_/   \/_/ \/_/   \/____/   \/_____/   \/_/   \/_/   \/_____/      \/_____/   \/_/ \/_/   \/_____/   \/_____/ 
+                                                                                                                               
+(windows only)
