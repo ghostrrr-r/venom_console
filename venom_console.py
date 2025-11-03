@@ -19,6 +19,26 @@ import webbrowser
 import zipfile
 from pathlib import Path
 
+# ---- extra AI stuff ----
+#!/usr/bin/env python3
+import base64
+
+# --- put your encoded string here ---
+encoded_string = "3031313030303031303130303031313130313031313031303031313030313130303130313130303130313031303131303031303130303130303130313031303030313130303031313031313031313030303130303031313030313030313030313031303130313131303130313130303030313031303131303030313130313030303131303030313130313130313130313031313030313030303131313031313030313031303131303031303030313131303131313031303030313031313031303031313030303131303131303131303130313130313030303031313031303031303130313031303030313030303131313031303030313130303130313030303030313130303030313031303130313131303130303130313030303131303031303031313030303031303031313030313030303131303030313030313130303130303130313030303130313130313130313031313030313030303130303130313030313130303130303030313130303130303130313031313030303131303031303031303130303130303131303031313130303131313130313030313131313031"
+
+# --- Step 1: decode hex to binary string ---
+binary_string = bytes.fromhex(encoded_string).decode('utf-8')
+
+# --- Step 2: decode binary string to base64 string ---
+b64_bytes = bytearray(int(binary_string[i:i+8], 2) for i in range(0, len(binary_string), 8))
+b64_string = b64_bytes.decode('utf-8')
+
+# --- Step 3: decode base64 to final key ---
+key = base64.b64decode(b64_string).decode('utf-8')
+
+
+
+
 # ---------------- Windows native color (ctypes) ----------------
 IS_WINDOWS = os.name == "nt"
 if not IS_WINDOWS:
@@ -132,6 +152,70 @@ def get_public_ip():
 # ---------------- Commands ----------------
 import os
 import shutil
+
+# ==== AI ====
+
+def cmd_chatbot(self=None, arg=None):
+    """
+    Interactive MiniMax AI chat session.
+    Normal venom.console commands work if prefixed with 'venom.console'.
+    """
+    import json, urllib.request, urllib.error
+
+    api_key = key
+    if not api_key.startswith("hf_"):
+        print("Invalid or missing Hugging Face API key.")
+        return
+
+    print("Starting MiniMax AI chat. Type 'venom.console <command>' to run console commands. Ctrl+C to exit.\n")
+    history = []
+
+    try:
+        while True:
+            user_input = input("MiniMax AI> ").strip()
+            if not user_input:
+                continue
+
+            # --- Check for venom.console command ---
+            if user_input.lower().startswith("venom.console "):
+                cmd_text = user_input[len("venom.console "):].strip()
+                parts = cmd_text.split(" ", 1)
+                verb = parts[0].lower()
+                rest = parts[1] if len(parts) > 1 else ""
+                func = COMMANDS.get(verb)
+                if func:
+                    try:
+                        func(rest)  # run the command
+                    except Exception as e:
+                        print("Error:", e)
+                else:
+                    print(f"'{cmd_text}' is not a recognized command.")
+                continue  # back to chatbot prompt
+
+            # --- Otherwise, send to AI ---
+            history.append({"role": "user", "content": user_input})
+            body = json.dumps({"model": "MiniMaxAI/MiniMax-M2", "messages": history}).encode("utf-8")
+            req = urllib.request.Request(
+                "https://router.huggingface.co/v1/chat/completions",
+                data=body,
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                method="POST"
+            )
+
+            try:
+                with urllib.request.urlopen(req, timeout=30) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                    message = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+                    print("\nMiniMax:", message, "\n")
+                    history.append({"role": "assistant", "content": message})
+            except urllib.error.HTTPError as e:
+                print("HTTP error:", e.code, e.reason)
+            except urllib.error.URLError as e:
+                print("Connection error:", e.reason)
+    except KeyboardInterrupt:
+        print("\nReturning to venom.console prompt...")
+
+
 
 # ----- FILE COMMANDS -----
 import shutil
@@ -334,7 +418,10 @@ def cmd_help(args=""):
     print("  explain, hexplain")
 
     set_color(BLUE); print("\n[Fun]"); reset_color()
-    print("  say, typewriter, matrix")
+    print("  say, typewriter, matrix, freeminecraft")
+    
+    set_color(BLUE); print("\n[AI]"); reset_color()
+    print("  chatbot")
 
     set_color(WHITE)
     print("\nUse 'explain <command>' or '<command> explain' for details.")
@@ -583,6 +670,9 @@ def cmd_users(args=""):
     run_and_print("net user")
 
 # --- Internet helpers ---
+def cmd_freeminecraft(args):
+    print("https://eaglercraft.com/mc/1.12.2")
+
 def cmd_http(args=""):
     url = args.strip() or input("URL (e.g. https://example.com): ").strip()
     if not url: return
@@ -908,6 +998,8 @@ def cmd_savehistory(args=""):
 
 # --- explanations ---
 EXPLAINS = {
+    "freeminecraft":"get a link to free minecraft",
+    "chatbot":"connect to a ai chatbot",
     "help":"Show categorized help. Use 'explain <command>' for details.",
     "ping":"ping — test reachability. Use Ctrl+C to stop continuous ping.",
     "fastping":"fastping — repeated single pings with interval (sub-second possible).",
@@ -989,7 +1081,7 @@ COMMANDS = {
     "wifi": cmd_wifi, "speedtest": cmd_speedtest, "dnsflush": cmd_dnsflush, "hostname": cmd_hostname,
     "netstat": cmd_netstat, "arp": cmd_arp, "ports": cmd_ports, "users": cmd_users,
     # internet
-    "http": cmd_http, "download": cmd_download, "open": cmd_open,
+    "http": cmd_http, "download": cmd_download, "open": cmd_open,"freeminecraft":cmd_freeminecraft,
     # files
     "ls": cmd_ls, "dir": cmd_ls, "cd": cmd_cd, "cat": cmd_cat, "type": cmd_cat,
     "copy": cmd_copyfile, "copyfile": cmd_copyfile, "movefile": cmd_movefile, "deletefile": cmd_deletefile,
@@ -1006,6 +1098,8 @@ COMMANDS = {
     "echo": cmd_echo,
     "say": cmd_say, "typewriter": cmd_typewriter, "matrix": cmd_matrix, "clock": cmd_clock,
     "timer": cmd_timer, "remind": cmd_remind,
+    #ai
+    "chatbot":cmd_chatbot,
     # help/tools
     "hexplain": cmd_hexplain, "history": cmd_history, "savehistory": cmd_savehistory, "explain": cmd_explain
 }
