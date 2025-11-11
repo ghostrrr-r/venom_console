@@ -401,10 +401,10 @@ def cmd_help(args=""):
     print("  sysinfo, uptime, whoami, whereami, env, path, processes, kill, storage, battery")
 
     set_color(BLUE); print("\n[Network]"); reset_color()
-    print("  ping, fastping, pingpayload, pinginline, tracert, ns, get-ip/ip, netinfo, saveinfo, myip/netip, wifi, speedtest, dnsflush, hostname, netstat, arp, ports, users")
+    print("  ping, fastping, pingpayload, pinginline, tracert, ns, get-ip/ip, ipsearch, netinfo, saveinfo, myip/netip, wifi, speedtest, dnsflush, hostname, netstat, arp, ports, users")
 
     set_color(BLUE); print("\n[Internet]"); reset_color()
-    print("  http, download, open")
+    print("  http, download, open, sendemail/email")
 
     set_color(BLUE); print("\n[Files]"); reset_color()
     print("  ls/dir, cd, cat/type, copy, del/rm, rename/mv, mkdir, rmdir, find, search, copyfile, movefile, deletefile, compress, extract, filesize, recent")
@@ -657,6 +657,31 @@ def cmd_ip(args=""):
     """Alias for get-ip command."""
     cmd_get_ip(args)
 
+def cmd_ipsearch(args=""):
+    """Reverse IP lookup - find domains/websites associated with an IP address."""
+    ip = args.strip() or input("IP address to search: ").strip()
+    if not ip:
+        return
+    
+    # Validate IP format (basic check)
+    parts = ip.split(".")
+    if len(parts) != 4 or not all(part.isdigit() and 0 <= int(part) <= 255 for part in parts):
+        print(f"'{ip}' is not a valid IP address.")
+        return
+    
+    try:
+        # Try reverse DNS lookup
+        hostname, aliaslist, ipaddrlist = socket.gethostbyaddr(ip)
+        print(f"IP Address: {ip}")
+        print(f"Hostname: {hostname}")
+        if aliaslist:
+            print(f"Aliases: {', '.join(aliaslist)}")
+        print(f"Resolved IPs: {', '.join(ipaddrlist)}")
+    except socket.herror:
+        print(f"No hostname found for IP address: {ip}")
+    except Exception as e:
+        print(f"Error searching IP '{ip}': {e}")
+
 def cmd_netinfo(args=""):
     print("Showing network info (no passwords).")
     cmds = ["ipconfig /all", "netsh wlan show interfaces", "netsh wlan show profiles", "arp -a", "route print", "ipconfig /displaydns", "whoami"]
@@ -749,6 +774,242 @@ def cmd_open(args=""):
         print("Opened:", target)
     except Exception as e:
         print("open failed:", e)
+
+def cmd_sendemail(args=""):
+    """Send an email via SMTP. Prompts for all required information."""
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+    
+    print("=" * 70)
+    print("EMAIL CONFIGURATION")
+    print("=" * 70)
+    
+    # Popular SMTP servers reference with auto-select
+    print("\nPopular Email Providers SMTP Settings:")
+    print("-" * 70)
+    smtp_providers = {
+        "1": ("Gmail", "smtp.gmail.com", 587),
+        "2": ("Outlook/Hotmail", "smtp-mail.outlook.com", 587),
+        "3": ("Yahoo", "smtp.mail.yahoo.com", 587),
+        "4": ("Yahoo (SSL)", "smtp.mail.yahoo.com", 465),
+        "5": ("AOL", "smtp.aol.com", 587),
+        "6": ("iCloud", "smtp.mail.me.com", 587),
+        "7": ("Zoho", "smtp.zoho.com", 587),
+        "8": ("ProtonMail", "127.0.0.1", 1025),
+        "9": ("Microsoft 365/Office 365", "smtp.office365.com", 587),
+        "10": ("Google Workspace (G Suite)", "smtp.gmail.com", 587),
+        "11": ("Custom Domain", None, None),
+        "12": ("Custom Server", None, None),
+    }
+    
+    # Display menu with visual indicators
+    for num, (name, server, port) in smtp_providers.items():
+        if server:
+            print(f"  [{num:>2}] {name:30} → {server:30} :{port}")
+        else:
+            print(f"  [{num:>2}] {name:30} → Enter manually")
+    print("-" * 70)
+    print("Tip: Just type the number and press Enter to auto-select!")
+    print("-" * 70)
+    
+    # SMTP server selection with auto-fill
+    choice = input("\nSelect provider [1-12] or enter custom SMTP server (default: 1): ").strip()
+    
+    if choice == "" or choice == "1":
+        smtp_server, smtp_port = smtp_providers["1"][1], smtp_providers["1"][2]
+        print(f"✓ Selected: Gmail ({smtp_server}:{smtp_port})")
+    elif choice in smtp_providers:
+        name, server, port = smtp_providers[choice]
+        if choice == "8":
+            print(f"✓ Selected: {name} ({server}:{port})")
+            print("  Note: ProtonMail requires ProtonMail Bridge to be installed and running.")
+        elif choice == "9":
+            smtp_server, smtp_port = server, port
+            print(f"✓ Selected: {name} ({smtp_server}:{smtp_port})")
+            print("  Note: Use your full email address (e.g., user@yourdomain.com)")
+        elif choice == "10":
+            smtp_server, smtp_port = server, port
+            print(f"✓ Selected: {name} ({smtp_server}:{smtp_port})")
+            print("  Note: Use your full Google Workspace email address")
+            print("  You'll need an App Password: https://myaccount.google.com/apppasswords")
+        elif choice == "11":
+            # Custom domain - try to detect common providers
+            print("\nCustom Domain Email Setup:")
+            print("Common SMTP servers for custom domains:")
+            print("  - Microsoft 365/Office 365: smtp.office365.com:587")
+            print("  - Google Workspace: smtp.gmail.com:587")
+            print("  - Check with your IT department for your organization's SMTP settings")
+            print()
+            domain = input("Enter your email domain (e.g., sionschool.org.uk): ").strip()
+            if domain:
+                # Try common patterns
+                if "office365" in domain.lower() or "microsoft" in domain.lower():
+                    smtp_server = "smtp.office365.com"
+                    smtp_port = 587
+                    print(f"✓ Auto-detected: Microsoft 365 → {smtp_server}:{smtp_port}")
+                elif "google" in domain.lower() or "gsuite" in domain.lower():
+                    smtp_server = "smtp.gmail.com"
+                    smtp_port = 587
+                    print(f"✓ Auto-detected: Google Workspace → {smtp_server}:{smtp_port}")
+                else:
+                    # Ask for SMTP server
+                    smtp_server = input(f"Enter SMTP server for {domain} (or press Enter for smtp.office365.com): ").strip()
+                    if not smtp_server:
+                        smtp_server = "smtp.office365.com"
+                    port_input = input("Enter SMTP port (default: 587): ").strip() or "587"
+                    try:
+                        smtp_port = int(port_input)
+                    except:
+                        smtp_port = 587
+                    print(f"✓ Selected: Custom Domain ({smtp_server}:{smtp_port})")
+            else:
+                smtp_server = input("Enter SMTP server: ").strip() or "smtp.office365.com"
+                port_input = input("Enter SMTP port (default: 587): ").strip() or "587"
+                try:
+                    smtp_port = int(port_input)
+                except:
+                    smtp_port = 587
+                print(f"✓ Selected: Custom Domain ({smtp_server}:{smtp_port})")
+        elif choice == "12":
+            smtp_server = input("Enter SMTP server: ").strip()
+            if not smtp_server:
+                smtp_server = "smtp.gmail.com"
+            port_input = input("Enter SMTP port (default: 587): ").strip() or "587"
+            try:
+                smtp_port = int(port_input)
+            except:
+                smtp_port = 587
+            print(f"✓ Selected: Custom Server ({smtp_server}:{smtp_port})")
+        else:
+            smtp_server, smtp_port = server, port
+            print(f"✓ Selected: {name} ({smtp_server}:{smtp_port})")
+    else:
+        # User entered custom server directly
+        smtp_server = choice
+        port_input = input("Enter SMTP port (default: 587): ").strip() or "587"
+        try:
+            smtp_port = int(port_input)
+        except:
+            smtp_port = 587
+        print(f"✓ Selected: Custom ({smtp_server}:{smtp_port})")
+    
+    # Gmail App Password Disclaimer
+    if "gmail.com" in smtp_server.lower():
+        print("\n" + "!" * 70)
+        print("IMPORTANT: GMAIL APP PASSWORD REQUIRED")
+        print("!" * 70)
+        print("Gmail does NOT accept your regular password for SMTP.")
+        print("You MUST use an App Password instead.")
+        print("\nTo get your Gmail App Password:")
+        print("1. Enable 2-Step Verification on your Google account")
+        print("2. Visit: https://myaccount.google.com/apppasswords")
+        print("3. Generate a new App Password for 'Mail'")
+        print("4. Use that 16-character password (not your regular password)")
+        print("\nDirect link: https://myaccount.google.com/apppasswords")
+        print("!" * 70 + "\n")
+    
+    # Email credentials
+    from_email = input("Your email address: ").strip()
+    if not from_email:
+        print("Email address required.")
+        return
+    
+    password = input("Your email password (or app password for Gmail): ").strip()
+    if not password:
+        print("Password required.")
+        return
+    
+    # Email content
+    to_email = input("To (recipient email): ").strip()
+    if not to_email:
+        print("Recipient email required.")
+        return
+    
+    subject = input("Subject: ").strip() or "(No Subject)"
+    print("Message body (press Enter twice to finish):")
+    lines = []
+    while True:
+        line = input()
+        if line == "" and lines and lines[-1] == "":
+            break
+        lines.append(line)
+    body = "\n".join(lines[:-1]) if lines else ""
+    
+    try:
+        # Create message
+        msg = MIMEMultipart()
+        msg['From'] = from_email
+        msg['To'] = to_email
+        msg['Subject'] = subject
+        msg.attach(MIMEText(body, 'plain'))
+        
+        # Connect and send
+        print(f"\nConnecting to {smtp_server}:{smtp_port}...")
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.set_debuglevel(1)  # Enable debug output
+        print("Starting TLS...")
+        server.starttls()
+        print("Logging in...")
+        server.login(from_email, password)
+        print("Sending email...")
+        text = msg.as_string()
+        result = server.sendmail(from_email, to_email, text)
+        server.quit()
+        
+        if result:
+            print(f"\n⚠ Warning: Some recipients failed: {result}")
+        else:
+            print(f"\n✓ Email sent successfully to {to_email}!")
+            print(f"  From: {from_email}")
+            print(f"  Subject: {subject}")
+            print(f"\nNote: Check spam/junk folder if you don't see it in inbox.")
+    except smtplib.SMTPAuthenticationError as e:
+        print(f"\n✗ Authentication failed!")
+        print(f"Error: {e}")
+        print("\nTroubleshooting:")
+        print("1. Check your email address and password are correct")
+        print("2. For Gmail: You MUST use an App Password (not your regular password)")
+        print("   Get one at: https://myaccount.google.com/apppasswords")
+        print("3. Make sure 2-Step Verification is enabled (required for Gmail App Passwords)")
+        print("4. For other providers, check if they require app-specific passwords")
+    except smtplib.SMTPRecipientsRefused as e:
+        print(f"\n✗ Recipient email rejected!")
+        print(f"Error: {e}")
+        print("Check that the recipient email address is valid.")
+    except smtplib.SMTPSenderRefused as e:
+        print(f"\n✗ Sender email rejected!")
+        print(f"Error: {e}")
+        print("Check that your email address is correct and authorized.")
+    except smtplib.SMTPDataError as e:
+        print(f"\n✗ Email content rejected!")
+        print(f"Error: {e}")
+        print("The email server rejected your message content.")
+    except smtplib.SMTPConnectError as e:
+        print(f"\n✗ Connection failed!")
+        print(f"Error: {e}")
+        print(f"Could not connect to {smtp_server}:{smtp_port}")
+        print("Check your internet connection and SMTP server settings.")
+    except smtplib.SMTPException as e:
+        print(f"\n✗ SMTP error: {e}")
+        print("\nCommon issues:")
+        print("- Wrong SMTP server or port")
+        print("- Firewall blocking the connection")
+        print("- Email provider blocking SMTP access")
+    except socket.gaierror as e:
+        print(f"\n✗ DNS resolution failed!")
+        print(f"Error: {e}")
+        print(f"Could not resolve hostname: {smtp_server}")
+        print("Check your internet connection and SMTP server address.")
+    except Exception as e:
+        print(f"\n✗ Unexpected error: {e}")
+        import traceback
+        print("\nFull error details:")
+        traceback.print_exc()
+
+def cmd_email(args=""):
+    """Alias for sendemail command."""
+    cmd_sendemail(args)
 
 # --- File management (NEW commands added) ---
 def resolve_path(p):
@@ -1050,6 +1311,7 @@ EXPLAINS = {
     "ns":"ns — run nslookup for host.",
     "get-ip":"get-ip/ip — resolve domain, website, or email address to IP address(es).",
     "ip":"get-ip/ip — resolve domain, website, or email address to IP address(es).",
+    "ipsearch":"ipsearch — reverse IP lookup, find hostname/domain associated with an IP address.",
     "netinfo":"netinfo — show network interfaces, ARP, routes, Wi-Fi info, user.",
     "saveinfo":"saveinfo — saves netinfo output to temp file.",
     "myip":"myip — show local outbound and public IP.",
@@ -1064,6 +1326,8 @@ EXPLAINS = {
     "http":"http — HTTP HEAD request, shows status and headers.",
     "download":"download — download a URL to temp folder.",
     "open":"open — open URL/file with default handler.",
+    "sendemail":"sendemail/email — send an email via SMTP (interactive setup).",
+    "email":"sendemail/email — send an email via SMTP (interactive setup).",
     "ls":"ls/dir — list directory entries.",
     "cd":"cd — change directory.",
     "cat":"cat/type — print file contents.",
@@ -1120,12 +1384,13 @@ COMMANDS = {
     # ping/network
     "ping": cmd_ping, "pingpayload": cmd_pingpayload, "pinginline": cmd_pinginline,
     "fastping": cmd_fastping, "tracert": cmd_tracert, "ns": cmd_ns,
-    "get-ip": cmd_get_ip, "ip": cmd_ip,
+    "get-ip": cmd_get_ip, "ip": cmd_ip, "ipsearch": cmd_ipsearch,
     "netinfo": cmd_netinfo, "saveinfo": cmd_saveinfo, "myip": cmd_myip, "netip": cmd_myip,
     "wifi": cmd_wifi, "speedtest": cmd_speedtest, "dnsflush": cmd_dnsflush, "hostname": cmd_hostname,
     "netstat": cmd_netstat, "arp": cmd_arp, "ports": cmd_ports, "users": cmd_users,
     # internet
     "http": cmd_http, "download": cmd_download, "open": cmd_open,"freeminecraft":cmd_freeminecraft,
+    "sendemail": cmd_sendemail, "email": cmd_email,
     # files
     "ls": cmd_ls, "dir": cmd_ls, "cd": cmd_cd, "cat": cmd_cat, "type": cmd_cat,
     "copy": cmd_copyfile, "copyfile": cmd_copyfile, "movefile": cmd_movefile, "deletefile": cmd_deletefile,
