@@ -21,9 +21,12 @@ A powerful Windows console tool with system management, networking, file operati
 
 ## Installation
 
-1. Clone or download this repository
-2. Ensure Python 3.13+ is installed
-3. Run the console - no additional setup required!
+1. Download the latest release from the [GitHub Releases](https://github.com/yourusername/venom/releases) page
+2. Extract the zip file to a folder of your choice
+3. Ensure Python 3.13+ is installed
+4. Run the console - no additional setup required!
+
+**Note:** You don't need to download `.gitignore` or any other Git-related files - they're included in the release but aren't required to run the application.
 
 ## Configuration
 
